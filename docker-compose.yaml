@@ -1,0 +1,60 @@
+version: '3'
+services:
+  # HomeAssistant
+  homeassistant:
+    container_name: home-assistant
+    image: homeassistant/home-assistant:latest
+    volumes:
+      # Local path where your home assistant config will be stored
+      - ./config/home-assistant:/config
+      - /etc/localtime:/etc/localtime:ro
+    restart: unless-stopped
+    privileged: true
+    depends_on:
+      - mariadb # MariaDB is optional (only if you would like to use a different database for HA).
+      - eclipse-mosquitto # aka mosquitto-mqtt is optional (only if you want to add Zigbee devices and have a zigbee sniffer attached).
+    ports:
+      - "8123:8123"
+
+
+  # MariaDb
+  mariadb:
+    container_name: mariadb
+    image: mariadb:latest
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD}"
+      MYSQL_DATABASE: ha_db
+      MYSQL_USER: homeassistant
+      MYSQL_PASSWORD: "${HA_MYSQL_PASSWORD}"
+    user: "${LOCAL_USER}:${LOCAL_USER}"
+    volumes:
+      # Local path where the database will be stored.
+      - ./store/mariadb:/var/lib/mysql
+
+
+  # eclipse-mosquitto (MQTT broker)
+  eclipse-mosquitto:
+    container_name: eclipse-mosquitto
+    image: eclipse-mosquitto:latest
+    restart: unless-stopped
+    volumes:
+      - ./config/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - ./config/mosquitto/:/mosquitto/
+    ports:
+      - "1883:1883"
+
+
+   # Visual Studio code
+  vscode:
+   container_name: vscode
+   image: codercom/code-server:latest
+   restart: unless-stopped
+   environment:
+     PASSWORD: "${VSCODE_PASSWORD}"
+   volumes:
+     - .:/home/coder/project
+     - ./store/coder:/home/coder/.local/share/code-server
+   ports:
+     - "8443:8443"
+   command: code-server --auth password --port 8443 --disable-telemetry /home/coder/project
